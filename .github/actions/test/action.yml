@@ -16,23 +16,22 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Update `image_format`
+    - name: Update `log_file` paths, `httpd_builtin.group` & `image_format`
       run: |
-        sed --in-place \
-          "s/image_format = .*/image_format = ${{ inputs.image_format }}/g" \
-          /etc/monitorix/monitorix.conf
-      shell: bash --noprofile --norc -euxo pipefail {0}
-
-    - name: Update `httpd_builtin.group`
-      run: |
-        sed --in-place \
-          "s/group = nobody/group = $(groups nobody | cut -d: -f2)/g" \
-          /etc/monitorix/monitorix.conf
+        sed \
+          -e "s#/var/log/monitorix\$#$(pwd)/monitorix.log#g" \
+          -e "s#/var/log/monitorix-httpd\$#$(pwd)/monitorix-httpd.log#g" \
+          -e "s#\tgroup = .*#\tgroup = $(groups nobody | cut -d: -f2)#g" \
+          -e "s#^image_format = .*#image_format = ${{ inputs.image_format }}#g" \
+          -e "s#/var/lib/monitorix#$(pwd)/var/lib#g" \
+          /etc/monitorix/monitorix.conf > monitorix-test.conf
       shell: bash --noprofile --norc -euxo pipefail {0}
 
     - name: Start `Monitorix`
       run: |
-        monitorix -c /etc/monitorix/monitorix.conf -p monitorix.pid
+        mkdir -p var/lib/www/cgi
+        touch monitorix.log monitorix-httpd.log
+        ${{ !matrix.image && 'sudo' || '' }} monitorix -c monitorix-test.conf -p monitorix.pid
       shell: bash --noprofile --norc -euxo pipefail {0}
 
     - name: Wait for `Monitorix`
@@ -62,6 +61,6 @@ runs:
 
     - name: Kill `Monitorix`
       run: |
-        kill $(cat monitorix.pid)
-        rm --force monitorix.pid
+        ${{ !matrix.image && 'sudo' || '' }} kill $(cat monitorix.pid)
+        ${{ !matrix.image && 'sudo' || '' }} rm --force monitorix.pid
       shell: bash --noprofile --norc -euxo pipefail {0}

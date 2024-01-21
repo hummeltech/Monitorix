@@ -3,5 +3,5 @@ runs:
   using: composite
   steps:
     - name: Run `make install-systemd-all`
-      run: make install-systemd-all
+      run: ${{ !matrix.image && 'sudo' || '' }} make install-systemd-all
       shell: bash --noprofile --norc -euxo pipefail {0}

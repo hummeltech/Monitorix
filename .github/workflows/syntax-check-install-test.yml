@@ -100,16 +100,89 @@ jobs:
         run: |
           echo "image_name=$(echo ${{ matrix.image }} | sed 's#[:/]#-#g')" >> \
             $GITHUB_ENV
-          tar --create --gzip --verbose --file /tmp/artifacts.tar.gz \
+          tar --create --gzip --verbose --file artifacts.tar.gz \
             /var/lib/monitorix/www \
-            /var/log/monitorix*
+            monitorix-httpd.log \
+            monitorix-test.conf \
+            monitorix.log
 
       - name: Upload `Monitorix` artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.image_name }}
-          path: /tmp/artifacts.tar.gz
+          path: artifacts.tar.gz
           retention-days: 5
+
+  FreeBSD:
+    continue-on-error: true
+    name: ${{ matrix.box_generic }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        box_generic:
+          - freebsd13
+          - freebsd14
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Provision VM
+        uses: hummeltech/freebsd-vagrant-action@v1.4
+        with:
+          box: generic/${{ matrix.box_generic }}
+
+      - name: Install Dependencies (FreeBSD)
+        uses: ./.github/actions/dependencies/install/pkg
+        with:
+          packages: ${{ env.freebsd-dependencies }}
+
+      - name: Check syntax
+        env:
+          PERL5LIB: lib
+        run: |
+          for FILE in monitorix monitorix.cgi lib/*.pm
+          do
+            perl -Mstrict -Mdiagnostics -cw $FILE
+          done
+
+      - name: Fix FreeBSD install
+        run: |
+          sed -i.bak 's/^BACKUP = .*/BACKUP = -B .bak/g' Makefile
+
+      - name: Install `Monitorix`
+        uses: ./.github/actions/install
+
+      - name: Test `Monitorix` with `image_format = PNG`
+        uses: ./.github/actions/test
+        with:
+          image_format: PNG
+        timeout-minutes: 5
+
+      - name: Test `Monitorix` with `image_format = SVG`
+        uses: ./.github/actions/test
+        with:
+          image_format: SVG
+        timeout-minutes: 5
+
+      - name: Tar `Monitorix` artifacts
+        run: |
+          echo "image_name=$(echo ${{ matrix.box_generic }} | sed 's#[:/]#-#g')" >> \
+            $GITHUB_ENV
+          tar --create --gzip --verbose --file artifacts.tar.gz \
+            /var/lib/monitorix/www \
+            monitorix-httpd.log \
+            monitorix-test.conf \
+            monitorix.log
+        if: always()
+
+      - name: Upload `Monitorix` artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.image_name }}
+          path: artifacts.tar.gz
+          retention-days: 5
+        if: always()
 
 env:
   archlinux-dependencies: >-
@@ -146,6 +219,19 @@ env:
     perl-App-cpanminus
     rrdtool
     rrdtool-perl
+  freebsd-dependencies: >-
+    p5-CGI
+    p5-Config-General
+    p5-DBI
+    p5-HTTP-Server-Simple
+    p5-MIME-Lite
+    p5-Net-IP
+    p5-ParallelUserAgent
+    p5-XML-LibXML
+    p5-XML-Simple
+    p5-libwww
+    perl5
+    rrdtool
   perl-modules: >-
     Config::General
     DBI
