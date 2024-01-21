@@ -1,0 +1,13 @@
+---
+inputs:
+  modules:
+    description: List of module(s) to install
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install module(s)
+      run: |
+        cpanm --notest install ${{ inputs.modules }}
+      shell: bash --noprofile --norc -euxo pipefail {0}

@@ -6,7 +6,7 @@ on:
   - push
 
 jobs:
-  syntax-check-install-test:
+  Linux:
     name: ${{ matrix.image }}
     runs-on: ubuntu-latest
     strategy:
@@ -33,14 +33,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Dependencies (Arch Linux)
-        uses: ./.github/actions/pacman/install
+        uses: ./.github/actions/dependencies/install/pacman
         with:
           packages: ${{ env.archlinux-dependencies }}
         if: |
           startsWith(matrix.image, 'archlinux:')
 
       - name: Install Dependencies (AlmaLinux/CentOS/CentOS Stream/Rocky Linux)
-        uses: ./.github/actions/yum/install
+        uses: ./.github/actions/dependencies/install/yum
         with:
           dependencies: epel-release
           groups: ${{ env.almalinux-centos-rockylinux-group-dependencies }}
@@ -52,7 +52,7 @@ jobs:
           startsWith(matrix.image, 'rockylinux:')
 
       - name: Install Dependencies (Debian/Ubuntu)
-        uses: ./.github/actions/apt-get/install
+        uses: ./.github/actions/dependencies/install/apt-get
         with:
           packages: ${{ env.debian-ubuntu-dependencies }}
         if: |
@@ -60,7 +60,7 @@ jobs:
           startsWith(matrix.image, 'ubuntu:')
 
       - name: Install Dependencies (Fedora)
-        uses: ./.github/actions/yum/install
+        uses: ./.github/actions/dependencies/install/yum
         with:
           groups: ${{ env.fedora-group-dependencies }}
           packages: ${{ env.fedora-dependencies }}
@@ -68,8 +68,9 @@ jobs:
           startsWith(matrix.image, 'fedora:')
 
       - name: Install Perl Modules
-        run: |
-          cpanm --notest install ${{ env.perl-modules }}
+        uses: ./.github/actions/dependencies/install/cpanm
+        with:
+          modules: ${{ env.perl-modules }}
 
       - name: Check syntax
         env:

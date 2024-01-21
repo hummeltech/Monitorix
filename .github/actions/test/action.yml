@@ -19,7 +19,7 @@ runs:
     - name: Update `image_format`
       run: |
         sed --in-place \
-          "s/image_format = PNG/image_format = ${{ inputs.image_format }}/g" \
+          "s/image_format = .*/image_format = ${{ inputs.image_format }}/g" \
           /etc/monitorix/monitorix.conf
       shell: bash --noprofile --norc -euxo pipefail {0}
 
